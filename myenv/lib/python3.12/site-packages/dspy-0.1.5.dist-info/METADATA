@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: dspy
+Version: 0.1.5
+Summary: Placeholder package for DSPy
+Author: Tom Dörr
+Author-email: tomdoerr96@gmail.com
+Requires-Python: >=3.3,<4.0
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Dist: dspy-ai (==2.4.5)
+Description-Content-Type: text/markdown
+
+
