@@ -13,14 +13,14 @@
 
 **Jessica's Notes**
 
-If cloning or pulling into a local environment for the first time, must set up and install modules and dependencies. 
-Use: 
+If cloning or pulling into a local environment for the first time, must set up and install modules and dependencies. Use: 
+```bash
 python -m venv .env
 source .env/bin/activate
 pip install -r requirements.txt
 pip3 install openai 
 pip3 install dspy
-
+```
 
 **Getting Started:** &nbsp; [<img align="center" src="https://colab.research.google.com/assets/colab-badge.svg" />](https://colab.research.google.com/github/stanfordnlp/dspy/blob/main/intro.ipynb)
 
