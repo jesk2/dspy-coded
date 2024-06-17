@@ -12,7 +12,15 @@
 [Dec'22] [Demonstrate-Search-Predict: Composing Retrieval & Language Models for Knowledge-Intensive NLP](https://arxiv.org/abs/2212.14024.pdf)
 
 **Jessica's Notes**
+
 If cloning or pulling into a local environment for the first time, must set up and install modules and dependencies. 
+Use: 
+python -m venv .env
+source .env/bin/activate
+pip install -r requirements.txt
+pip3 install openai 
+pip3 install dspy
+
 
 **Getting Started:** &nbsp; [<img align="center" src="https://colab.research.google.com/assets/colab-badge.svg" />](https://colab.research.google.com/github/stanfordnlp/dspy/blob/main/intro.ipynb)
 
