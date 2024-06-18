@@ -1,18 +1,50 @@
-# build a RAG pipeline
+# BUILD A RAG PIPELINE
 
+import sys
+import os
 import dspy
 import warnings
 from urllib3.exceptions import NotOpenSSLWarning
-from dspy.datasets import HotPotQA
 
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
+warnings.filterwarnings('ignore', category=NotOpenSSLWarning)
 
+# Properly configure the OpenAI client with necessary parameters
+class CustomOpenAI(dspy.OpenAI):
+    def __init__(self, model='gpt-3.5-turbo', api_key=None, **kwargs):
+        if api_key is None:
+            api_key = os.getenv('OPENAI_API_KEY')
+        super().__init__(model=model, api_key=api_key, **kwargs)
+
+    def chat_completions_create(self, **kwargs):
+        # Ensure all string parameters are properly encoded
+        for key, value in kwargs.items():
+            if isinstance(value, str):
+                kwargs[key] = value.encode('utf-8', 'ignore').decode('utf-8')
+        return super().chat_completions_create(**kwargs)
+
+# Clean text 
+import re
+
+def clean_text(text):
+    # Replace problematic characters
+    cleaned_text = re.sub(r'[^\x00-\x7F]+', '', text)  # Remove non-ASCII characters
+    return cleaned_text
+
+################
+#   LM Setup   #
+################
+
+# Initialize the OpenAI client with the API key from environment variable
 turbo = dspy.OpenAI(model='gpt-3.5-turbo')
 colbertv2_wiki17_abstracts = dspy.ColBERTv2(url='http://20.102.90.50:2017/wiki17_abstracts')
 
 dspy.settings.configure(lm=turbo, rm=colbertv2_wiki17_abstracts)
 
-# loading the dataset 
+###########################
+#   Loading the dataset   #
+###########################
+
+from dspy.datasets import HotPotQA
 
 dataset = HotPotQA(train_seed=1, train_size=20, eval_seed=2023, dev_size=50, test_size=0)
 
@@ -22,19 +54,21 @@ devset = [x.with_inputs('question') for x in dataset.dev]
 
 len(trainset), len(devset)
 
-# build signature for subtasks of pipeline 
+################################################
+#   Build signature for subtasks of pipeline   #
+################################################
 
 class GenerateAnswer(dspy.Signature):
-    """Answer questions with short factoid answers"""
-    context = dspy.InputField(desc="may contain relevant facts")
+    '''Answer questions with short factoid answers'''
+    context = dspy.InputField(desc='may contain relevant facts')
     question = dspy.InputField()
-    answer = dspy.OutputField(desc="often between 1 and 5 words")
+    answer = dspy.OutputField(desc='often between 1 and 5 words')
 
 # build the pipeline using DSPy module
 class RAG(dspy.Module):
     # uses CoT and GenerateAnswer submodules 
     def __init__(self, num_passages=3):
-        super.__init__()
+        super().__init__()
         self.retrieve = dspy.Retrieve(k=num_passages)
         self.generate_answer = dspy.ChainOfThought(GenerateAnswer)
 
@@ -44,7 +78,10 @@ class RAG(dspy.Module):
         prediction = self.generate_answer(context=context, question=question)
         return dspy.Prediction(context=context, answer=prediction.answer)
     
-# optimize the pipeline 
+#############################
+#   Optimize the pipeline   #
+#############################
+
 # depends on training set, metric for validation, and teleprompter 
 from dspy.teleprompt import BootstrapFewShot 
 
@@ -52,12 +89,51 @@ from dspy.teleprompt import BootstrapFewShot
 # Also check that the retrieved context does actually contain that answer.
 def validate_context_and_answer(example, pred, trace=None):
     answer_EM = dspy.evaluate.answer_exact_match(example, pred)
-    answer_PM = dspy.evaluate.answer_passage_patch(example, pred)
+    answer_PM = dspy.evaluate.answer_passage_match(example, pred)
     return answer_EM and answer_PM
 
 # Set up a basic teleprompter, which will compile our RAG program.
 teleprompter = BootstrapFewShot(metric=validate_context_and_answer)
 compiled_rag = teleprompter.compile(RAG(), trainset=trainset)
 
+##############################
+#   Executing the pipeline   #
+##############################
 
-# executing the pipeline (to be continued)
+# Ask any question you like to this simple RAG program.
+my_qn = 'What castle did David Gregory inherit?'
+# Get the prediction. This contains `pred.context` and `pred.answer`.
+pred = compiled_rag(my_qn)
+print(f'Question: {my_qn}')
+print(f'Predicted Answer: {pred.answer}')
+print(f'Retrieved Contexts (truncated): {[c[:200] + '...' for c in pred.context]}')
+
+turbo.inspect_history(n=1) # inspect last prompt 
+
+# Even though we haven't written any of this detailed demonstrations, we see that DSPy was able to
+# bootstrap this 3,000 token prompt for 3-shot retrieval-augmented generation with hard negative
+# passages and uses Chain-of-Thought reasoning within an extremely simply-written program.
+
+#######################################################################
+#   Evaluating the Pipeline (the accuracy or exact match of answer)   #
+#######################################################################
+
+from dspy.evaluate.evaluate import Evaluate 
+
+# Set up the `evaluate_on_hotpotqa` function. We'll use this many times below.
+evaluate_on_hotpotqa = Evaluate(devset=devset, num_threads=1, display_progress=False, display_table=5)
+
+# Evaluate the `compiled_rag` program with the `answer_exact_match` metric.
+metric = dspy.evaluate.answer_exact_match 
+evaluate_on_hotpotqa(compiled_rag, metric=metric)
+
+################################
+#   Evaluating the retrieval   #
+################################
+
+def gold_passages_retrieved(example, pred, trace=None):
+    gold_titles = set(map(dspy.evaluate.normalize_text, example['gold_titles']))
+    found_titles = set(map(dspy.evaluate.normalize_text, [c.split(' | ')[0] for c in pred.context]))
+    return gold_titles.issubset(found_titles)
+
+compiled_rag_retrival_score = evaluate_on_hotpotqa(compiled_rag, metric=gold_passages_retrieved)
