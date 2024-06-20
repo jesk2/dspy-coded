@@ -13,10 +13,6 @@ warnings.filterwarnings('ignore', category=NotOpenSSLWarning)
 ################
 
 # Initialize the OpenAI client with the API key from environment variable
-import openai 
-
-# api_key =""
-# openai.api_key = api_key
 
 turbo = dspy.OpenAI(model='gpt-3.5-turbo')
 colbertv2_wiki17_abstracts = dspy.ColBERTv2(url='http://20.102.90.50:2017/wiki17_abstracts')
