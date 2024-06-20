@@ -8,33 +8,16 @@ from urllib3.exceptions import NotOpenSSLWarning
 
 warnings.filterwarnings('ignore', category=NotOpenSSLWarning)
 
-# Properly configure the OpenAI client with necessary parameters
-class CustomOpenAI(dspy.OpenAI):
-    def __init__(self, model='gpt-3.5-turbo', api_key=None, **kwargs):
-        if api_key is None:
-            api_key = os.getenv('OPENAI_API_KEY')
-        super().__init__(model=model, api_key=api_key, **kwargs)
-
-    def chat_completions_create(self, **kwargs):
-        # Ensure all string parameters are properly encoded
-        for key, value in kwargs.items():
-            if isinstance(value, str):
-                kwargs[key] = value.encode('utf-8', 'ignore').decode('utf-8')
-        return super().chat_completions_create(**kwargs)
-
-# Clean text 
-import re
-
-def clean_text(text):
-    # Replace problematic characters
-    cleaned_text = re.sub(r'[^\x00-\x7F]+', '', text)  # Remove non-ASCII characters
-    return cleaned_text
-
 ################
 #   LM Setup   #
 ################
 
 # Initialize the OpenAI client with the API key from environment variable
+import openai 
+
+# api_key =""
+# openai.api_key = api_key
+
 turbo = dspy.OpenAI(model='gpt-3.5-turbo')
 colbertv2_wiki17_abstracts = dspy.ColBERTv2(url='http://20.102.90.50:2017/wiki17_abstracts')
 
@@ -77,7 +60,7 @@ class RAG(dspy.Module):
         context = self.retrieve(question).passages
         prediction = self.generate_answer(context=context, question=question)
         return dspy.Prediction(context=context, answer=prediction.answer)
-    
+
 #############################
 #   Optimize the pipeline   #
 #############################
@@ -101,11 +84,11 @@ compiled_rag = teleprompter.compile(RAG(), trainset=trainset)
 ##############################
 
 # Ask any question you like to this simple RAG program.
-my_qn = 'What castle did David Gregory inherit?'
+my_question = "What castle did David Gregory inherit?"
 # Get the prediction. This contains `pred.context` and `pred.answer`.
-pred = compiled_rag(my_qn)
-print(f'Question: {my_qn}')
-print(f'Predicted Answer: {pred.answer}')
+pred = compiled_rag(my_question)
+print(f"Question: {my_question}")
+print(f"Predicted Answer: {pred.answer}")
 print(f'Retrieved Contexts (truncated): {[c[:200] + '...' for c in pred.context]}')
 
 turbo.inspect_history(n=1) # inspect last prompt 
