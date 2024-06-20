@@ -14,7 +14,6 @@ dspy.settings.configure(lm=turbo, rm=colbertv2_wiki17_abstracts)
 
 ###########################
 #   Loading the dataset   #
-<<<<<<< HEAD
 ###########################
 from dspy.datasets import HotPotQA
 
@@ -131,6 +130,3 @@ print(f"## Retrieval Score for uncompiled Baleen: {uncompiled_baleen_retrieval_s
 print(f"## Retrieval Score for compiled Baleen: {compiled_baleen_retrieval_score}") # 60.0 
 
 
-=======
-###########################
->>>>>>> 21f5c0030d9a0acde37076894913d03176aa9ade
