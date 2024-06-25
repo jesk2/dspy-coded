@@ -47,7 +47,6 @@ if __name__ == "__main__":
         model="gpt-3.5-turbo",
         max_tokens=4000,
         model_type="chat",
-        api_base="http://0.0.0.0:4000/",
     )
 
     with dspy.context(lm=gpt3):
