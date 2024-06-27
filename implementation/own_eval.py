@@ -1,23 +1,27 @@
 # just LLMsAsJudge and DirectAssessment classes 
 
 import dspy
+from dspy import Prediction
+from dspy.evaluate import Evaluate
+from dspy.evaluate.metrics import answer_exact_match, answer_passage_match
 from prometheus_eval import PrometheusEval
-from prometheus_eval.litellm import LiteLLM
+from prometheus_eval.mock import MockLLM
 from prometheus_eval.prompts import ABSOLUTE_PROMPT, SCORE_RUBRIC_TEMPLATE, RELATIVE_PROMPT
 import logging 
 # for testing use from prometheus_eval.mock import MockLLM (result is Hello by default and judge_model = 'absolute' 
 
 logging.basicConfig(level=logging.DEBUG)
 
-
-class LLMsAsJudge():
+class LLMsAsJudge(dspy.Module):
     def __init__(self, model_name, rubric_template):
-        self.judge = PrometheusEval(model=LiteLLM(model_name))
+        super().__init__()
+        self.judge = PrometheusEval(model=MockLLM(model_name))
         self.rubric_template = rubric_template
 
-    def single_absolute_grade(self, instruction, response, reference_answer, rubric_data):
+    def forward(self, instruction, response, reference_answer, rubric_data):
         rubric = self.rubric_template.format(**rubric_data)
         logging.debug(f"Formatted rubric: {rubric}")
+        
         try:
             feedback, score = self.judge.single_absolute_grade(
                 instruction=instruction,
@@ -29,18 +33,17 @@ class LLMsAsJudge():
         except Exception as e:
             logging.error(f"Error in single_absolute_grade: {e}")
             feedback, score = None, None
-        return feedback, score
-
+        
+        return Prediction(feedback=feedback, score=score)
 
 class DirectAssessment(LLMsAsJudge):
     def forward(self, instruction, response, reference_answer, rubric_data):
-        feedback, score = self.single_absolute_grade(instruction, response, reference_answer, rubric_data)
-        return dspy.Prediction(feedback=feedback, score=score)
+        return super().forward(instruction, response, reference_answer, rubric_data)
 
 # testing 
 if __name__ == "__main__":
     rubric_template = SCORE_RUBRIC_TEMPLATE
-    judge_model = 'gpt-3.5-turbo' 
+    judge_model = 'absolute' 
 
     instruction = "Struggling with a recent break-up, a person opens up about the intense feelings of loneliness and sadness. They ask for advice on how to cope with the heartbreak and move forward in life."
     response = "It's important to allow yourself to feel your emotions and give yourself time to heal. Try to focus on self-care and seek support from friends and family."
@@ -66,5 +69,66 @@ if __name__ == "__main__":
             rubric_template=rubric_template
         )
         result = direct_assessment.forward(instruction, response, reference_answer, rubric_data)
-        print("Feedback:", result.feedback)
-        print("Score:", result.score)
+        # print("Feedback:", result.feedback)
+        # print("Score:", result.score)
+
+
+# Data filtering DOES NOT WORK THE WAY IT SHOULD!!!!!!!!
+
+def quality_metric(example, pred, trace=None):
+    return "good" in pred['response'].lower()
+
+def difficulty_metric(example, pred, trace=None):
+    return len(example['instruction'].split()) > 5
+
+def diversity_metric(example, pred, trace=None):
+    return len(set(pred['response'].split())) > 10
+
+class DataFilter(dspy.Module):
+    def __init__(self, data, metric):
+        super().__init__()
+        self.data = data
+        self.metric = metric
+
+    def filter(self):
+        evaluator = Evaluate(devset=self.data, num_threads=1, display_progress=True)
+        scores = []
+        for item in self.data:
+            score = self.metric(item, item)
+            scores.append(score)
+        return [self.data[idx] for idx, score in enumerate(scores) if score]
+
+class ResponseFilter(DataFilter):
+    def __init__(self, data, quality_metric):
+        super().__init__(data, quality_metric)
+
+class DifficultyFilter(DataFilter):
+    def __init__(self, data, difficulty_metric):
+        super().__init__(data, difficulty_metric)
+
+class DiversityFilter(DataFilter):
+    def __init__(self, data, diversity_metric):
+        super().__init__(data, diversity_metric)
+
+# Usage in main code
+if __name__ == "__main__":
+    # Assuming `data` is your dataset
+    data = [
+        {'instruction': 'What is the capital of France?', 'response': 'The capital of France is Paris.'},
+        {'instruction': 'Describe a beautiful sunset.', 'response': 'The sunset is beautiful with hues of orange and pink.'},
+        # Add more examples as needed
+    ]
+
+    # Instantiate and use the filters
+    response_filter = ResponseFilter(data, quality_metric)
+    filtered_data_by_quality = response_filter.filter()
+
+    difficulty_filter = DifficultyFilter(data, difficulty_metric)
+    filtered_data_by_difficulty = difficulty_filter.filter()
+
+    diversity_filter = DiversityFilter(data, diversity_metric)
+    filtered_data_by_diversity = diversity_filter.filter()
+
+    print("Filtered data by quality:", filtered_data_by_quality)
+    print("Filtered data by difficulty:", filtered_data_by_difficulty)
+    print("Filtered data by diversity:", filtered_data_by_diversity)
