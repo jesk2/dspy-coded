@@ -1,9 +1,14 @@
 # just LLMsAsJudge and DirectAssessment classes 
 
 import dspy
-from prometheus_eval.litellm import LiteLLM
 from prometheus_eval import PrometheusEval
+from prometheus_eval.litellm import LiteLLM
 from prometheus_eval.prompts import ABSOLUTE_PROMPT, SCORE_RUBRIC_TEMPLATE, RELATIVE_PROMPT
+import logging 
+# for testing use from prometheus_eval.mock import MockLLM (result is Hello by default and judge_model = 'absolute' 
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 class LLMsAsJudge():
     def __init__(self, model_name, rubric_template):
@@ -12,24 +17,30 @@ class LLMsAsJudge():
 
     def single_absolute_grade(self, instruction, response, reference_answer, rubric_data):
         rubric = self.rubric_template.format(**rubric_data)
-        feedback, score = self.judge.single_absolute_grade(
-            instruction=instruction,
-            response=response,
-            rubric=rubric,
-            reference_answer=reference_answer
-        )
+        logging.debug(f"Formatted rubric: {rubric}")
+        try:
+            feedback, score = self.judge.single_absolute_grade(
+                instruction=instruction,
+                response=response,
+                rubric=rubric,
+                reference_answer=reference_answer
+            )
+            logging.debug(f"Received feedback: {feedback}, score: {score}")
+        except Exception as e:
+            logging.error(f"Error in single_absolute_grade: {e}")
+            feedback, score = None, None
         return feedback, score
+
 
 class DirectAssessment(LLMsAsJudge):
     def forward(self, instruction, response, reference_answer, rubric_data):
         feedback, score = self.single_absolute_grade(instruction, response, reference_answer, rubric_data)
         return dspy.Prediction(feedback=feedback, score=score)
 
-
 # testing 
 if __name__ == "__main__":
     rubric_template = SCORE_RUBRIC_TEMPLATE
-    judge_model_name = 'gpt-3.5-turbo' 
+    judge_model = 'gpt-3.5-turbo' 
 
     instruction = "Struggling with a recent break-up, a person opens up about the intense feelings of loneliness and sadness. They ask for advice on how to cope with the heartbreak and move forward in life."
     response = "It's important to allow yourself to feel your emotions and give yourself time to heal. Try to focus on self-care and seek support from friends and family."
@@ -51,7 +62,7 @@ if __name__ == "__main__":
 
     with dspy.context(lm=gpt3):
         direct_assessment = DirectAssessment(
-            model_name=judge_model_name,
+            model_name=judge_model,
             rubric_template=rubric_template
         )
         result = direct_assessment.forward(instruction, response, reference_answer, rubric_data)
