@@ -17,27 +17,38 @@ class LLMsAsJudge(dspy.Module):
         self.judge = PrometheusEval(model=MockLLM(model_name))
         self.rubric_template = rubric_template
 
-    def forward(self, instruction, response, reference_answer, rubric_data):
-        rubric = self.rubric_template.format(**rubric_data)
-        logging.debug(f"Formatted rubric: {rubric}")
+    # def forward(self, instruction, response, reference_answer, rubric_data):
+    #     rubric = self.rubric_template.format(**rubric_data)
+    #     logging.debug(f"Formatted rubric: {rubric}")
         
-        try:
-            feedback, score = self.judge.single_absolute_grade(
-                instruction=instruction,
-                response=response,
-                rubric=rubric,
-                reference_answer=reference_answer
-            )
-            logging.debug(f"Received feedback: {feedback}, score: {score}")
-        except Exception as e:
-            logging.error(f"Error in single_absolute_grade: {e}")
-            feedback, score = None, None
+    #     try:
+    #         feedback, score = self.judge.single_absolute_grade(
+    #             instruction=instruction,
+    #             response=response,
+    #             rubric=rubric,
+    #             reference_answer=reference_answer
+    #         )
+    #         logging.debug(f"Received feedback: {feedback}, score: {score}")
+    #     except Exception as e:
+    #         logging.error(f"Error in single_absolute_grade: {e}")
+    #         feedback, score = None, None
         
-        return Prediction(feedback=feedback, score=score)
+    #     return Prediction(feedback=feedback, score=score)
 
 class DirectAssessment(LLMsAsJudge):
     def forward(self, instruction, response, reference_answer, rubric_data):
-        return super().forward(instruction, response, reference_answer, rubric_data)
+        return
+        # return super().forward(instruction, response, reference_answer, rubric_data)
+    
+class PairwiseRanking(LLMsAsJudge):
+    def forward(self, instruction, responseA, responseB, reference_answer, rubric_data):
+        return
+        # return super().forward(instruction, response, reference_answer, rubric_data)
+    
+class ListwiseRanking(LLMsAsJudge):
+    def forward(self, instruction, response_list, reference_answer, rubric_data):
+        return
+        # return super().forward(instruction, response, reference_answer, rubric_data)
 
 # testing 
 if __name__ == "__main__":
