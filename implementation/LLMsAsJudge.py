@@ -22,13 +22,13 @@ class LLMsAsJudge(dspy.Module):
         logging.debug(f"Formatted rubric: {rubric}")
         
         try:
-            feedback, score = self.judge.single_absolute_grade(
+           feedback, score = self.judge.single_absolute_grade(
                 instruction=instruction,
                 response=response,
                 rubric=rubric,
                 reference_answer=reference_answer
             )
-            logging.debug(f"Received feedback: {feedback}, score: {score}")
+            # ogging.debug(f"Received feedback: {feedback}, score: {score}")
         except Exception as e:
             logging.error(f"Error in single_absolute_grade: {e}")
             feedback, score = None, None
@@ -37,6 +37,14 @@ class LLMsAsJudge(dspy.Module):
 
 class DirectAssessment(LLMsAsJudge):
     def forward(self, instruction, response, reference_answer, rubric_data):
+        return super().forward(instruction, response, reference_answer, rubric_data)
+
+class PairwiseRanking(LLMsAsJudge):
+    def forward(self, instruction, responseA, responseB, reference_answer, rubric_data):
+        return super().forward(instruction, response, reference_answer, rubric_data)
+
+class ListwiseRanking(LLMsAsJudge):
+    def forward(self, instruction, response_list, reference_answer, rubric_data):
         return super().forward(instruction, response, reference_answer, rubric_data)
 
 # testing 
