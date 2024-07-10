@@ -4,15 +4,10 @@ from dspy import Prediction
 import logging 
 
 class DataFilter(dspy.Module):
-    def __init__(self, model_name, rubric_template):
+    def __init__(self, direct_assessment):
         super().__init__()
-        self.direct_assessment = DirectAssessment(model_name, rubric_template)
-        # unsure about including pair/list wise ranking 
-        self.pairwise_ranking = PairwiseRanking(model_name, rubric_template)
-        self.listwise_ranking = ListwiseRanking(model_name, rubric_template)
+        self.direct_assessment = direct_assessment
 
-# does not yet properly filter based on quality of response  
-# should use listwise ranking - must we have 
 class ResponseFilter(DataFilter):
     def forward(self, instructions, responses, reference_answers, rubric_data):
         scored_responses = []
@@ -21,10 +16,13 @@ class ResponseFilter(DataFilter):
             if score is None:
                 logging.error(f'Score is None for instruction={instruction}, response={response}')
             scored_responses.append((response, score))
-  
-        return scored_responses
+        
+        # Filtering quality based on score: example 3 (can also implement as parameter?)
+        high_quality_responses = [response for response, score in scored_responses if score is not None and score > 3]
+        
+        return high_quality_responses
 
-# does not yet properly filter based on difficulty 
+
 class DifficultyFilter(DataFilter):
     def forward(self, instructions, reference_answers, rubric_data):
         scored_instructions = []
@@ -33,14 +31,12 @@ class DifficultyFilter(DataFilter):
             if score is None:
                 logging.error(f'Score is None for instruction={instruction}')
             scored_instructions.append((instruction, score))
-
-        # Filter to keep only challenging instructions
+        
+        # Filtering quality based on score: example 3 (can also implement as parameter?)
         challenging_instructions = [instr for instr, score in scored_instructions if score is not None and score > 3]
-
+        
         return challenging_instructions
 
-# does not yet properly filter based on diversity 
-# should use pairwise ranking 
 class DiversityFilter(DataFilter):
     def forward(self, instructions, rubric_data):
         scored_instructions = []
@@ -49,3 +45,5 @@ class DiversityFilter(DataFilter):
             if score is None:
                 logging.error(f'Score is None for instruction={instruction}')
             scored_instructions.append((instruction, feedback))
+        
+        return scored_instructions

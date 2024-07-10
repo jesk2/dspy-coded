@@ -7,7 +7,6 @@ from prometheus_eval import PrometheusEval
 from prometheus_eval.mock import MockLLM
 from prometheus_eval.prompts import ABSOLUTE_PROMPT, SCORE_RUBRIC_TEMPLATE, RELATIVE_PROMPT
 import logging 
-# for testing use from prometheus_eval.mock import MockLLM (result is Hello by default and judge_model = 'absolute' 
 
 logging.basicConfig(level=logging.DEBUG)
 

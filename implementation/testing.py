@@ -1,7 +1,9 @@
-from judge import DirectAssessment, PairwiseRanking, ListwiseRanking
+from judge import DirectAssessment
 from DataFilter import ResponseFilter, DifficultyFilter, DiversityFilter
 from prometheus_eval.prompts import ABSOLUTE_PROMPT, SCORE_RUBRIC_TEMPLATE, RELATIVE_PROMPT
-
+from prometheus_eval import PrometheusEval
+from prometheus_eval.mock import MockLLM
+from prometheus_eval.litellm import LiteLLM
 
 # Define the rubric data
 rubric_data = {
@@ -31,12 +33,14 @@ reference_answers = [
 ]
 
 # Initialize the filters
-model_name = "prometheus-eval/prometheus-7b-v2.0"
+model_name = PrometheusEval(model=LiteLLM('gpt-3.5-turbo'), absolute_grade_template=ABSOLUTE_PROMPT)
 rubric_template = SCORE_RUBRIC_TEMPLATE
 
-response_filter = ResponseFilter(model_name, rubric_template)
-difficulty_filter = DifficultyFilter(model_name, rubric_template)
-diversity_filter = DiversityFilter(model_name, rubric_template)
+
+direct_assessment = DirectAssessment(model_name, rubric_template)
+response_filter = ResponseFilter(direct_assessment)
+difficulty_filter = DifficultyFilter(direct_assessment)
+diversity_filter = DiversityFilter(direct_assessment)
 
 # Run the filters
 filtered_responses = response_filter.forward(instructions, responses, reference_answers, rubric_data)
@@ -47,3 +51,4 @@ diverse_instructions = diversity_filter.forward(instructions, rubric_data)
 print("Filtered Responses:", filtered_responses)
 print("Challenging Instructions:", challenging_instructions)
 print("Diverse Instructions:", diverse_instructions)
+
