@@ -11,22 +11,30 @@ class LLMsAsJudge(dspy.Module):
         self.rubric_template = rubric_template
 
 class DirectAssessment(LLMsAsJudge):
-    def forward(self, instruction, response, reference_answer, rubric_data):
-        score_rubric = self.rubric_template.format(**rubric_data)
-        # first proceed with single absolute grade 
-        feedback, score = self.model.single_absolute_grade(
-            instruction=instruction,
-            response=response,
-            rubric=score_rubric,
-            reference_answer=reference_answer
+    def forward(self, instructions, responses, reference_answers, rubric_data):
+        rubric = self.rubric_template.format(**rubric_data)
+        feedbacks, score = self.model.absolute_grade(
+            instructions=instructions,
+            responses=responses,
+            rubric=rubric,
+            reference_answers=reference_answers
         )
         # logging.debug(f'DirectAssessment forward: instruction={instruction}, response={response}, score={score}')
-        return feedback, score
+        return feedbacks, score 
 
 class PairwiseRanking(LLMsAsJudge):
-    def forward(self, instruction, responseA, responseB, reference_answer, rubric_data):
-        pass 
+    def forward(self, instructions, responseA, responseB, reference_answer, rubric_data):
+        rubric = self.rubric_template.format(**rubric_data)
+        feedbacks, score = self.model.relative_grade(
+            instructions = instructions,
+            responses_A = responseA,
+            responses_B = responseB,
+            rubric = rubric, 
+            reference_answers = reference_answer
+        )
+        # logging.debug(f'PairwiseRanking forward: instruction={instruction}, responseA={responseA}, responseB={responseB}, score={score}')
+        return feedbacks, score
 
-class ListwiseRanking(LLMsAsJudge):
+class ListwiseRanking(PairwiseRanking):
     def forward(self, instruction, response_list, reference_answer, rubric_data):
         pass 
