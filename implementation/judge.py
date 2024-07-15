@@ -37,4 +37,22 @@ class PairwiseRanking(LLMsAsJudge):
 
 class ListwiseRanking(PairwiseRanking):
     def forward(self, instruction, response_list, reference_answer, rubric_data):
-        pass 
+        # def helper function pairwise_tournament 
+        # while more than one response in responses 
+        #   initialize empty next_round list 
+        #   for every pair of responses
+        #       if a pair exists 
+        #           self.forward with **parameters 
+        #           append winner to next_round 
+        #       else:
+        #           append remaining response to the next_round 
+        #       return the final responses
+        # initialize empty best_responses list 
+        # for each response group in response_list 
+        #   if < 2 responses 
+        #       warning and skip  
+        #   else 
+        #       call pairwise_tournament with **parameters 
+        #       append best in best_responsses 
+        # return best_responses 
+ 
