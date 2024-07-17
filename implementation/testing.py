@@ -8,27 +8,39 @@ from prometheus_eval.litellm import LiteLLM
 ################################
 #   Pairwise ranking testing   #
 ################################
-prometheus_model = PrometheusEval(model=LiteLLM('gpt-3.5-turbo'), relative_grade_template=RELATIVE_PROMPT)
-judge = LLMsAsJudge(model=prometheus_model, rubric_template=SCORE_RUBRIC_TEMPLATE)
-pairwise_ranking = PairwiseRanking(model=judge, rubric_template=SCORE_RUBRIC_TEMPLATE)
-instruction = ["A group of historians are conducting a debate on the factors that led to the fall of the Roman Empire..."]
-responseA = "The historian arguing that economic troubles and overreliance on slave labor led to the fall of the Roman Empire..."
-responseB = "The historian arguing for economic troubles and overreliance on slave labor would present their case citing key economic factors..."
-reference_answer = "This argument focuses on the economic troubles and overreliance on slave labor as primary reasons for the fall of the Roman Empire..."
-rubric_data = {
-  "criteria":"Is the model proficient in applying empathy and emotional intelligence to its responses when the user conveys emotions or faces challenging circumstances?",
-  "score1_description":"The model neglects to identify or react to the emotional tone of user inputs, giving responses that are unfitting or emotionally insensitive.",
-  "score2_description":"The model intermittently acknowledges emotional context but often responds without sufficient empathy or emotional understanding.",
-  "score3_description":"The model typically identifies emotional context and attempts to answer with empathy, yet the responses might sometimes miss the point or lack emotional profundity.",
-  "score4_description":"The model consistently identifies and reacts suitably to emotional context, providing empathetic responses. Nonetheless, there may still be sporadic oversights or deficiencies in emotional depth.",
-  "score5_description":"The model excels in identifying emotional context and persistently offers empathetic, emotionally aware responses that demonstrate a profound comprehension of the user's emotions or situation."
-}
-score_rubric = SCORE_RUBRIC_TEMPLATE.format(**rubric_data)
-feedback, score = pairwise_ranking.forward(instruction, responseA, responseB, reference_answer, rubric_data)
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
+
+# Define the rubric data
+rubric_data = {
+    "instruction": "Instruction",
+    "response_A": "response A",
+    "response_B": "response B",
+    "reference_answer": "reference answer",
+    "rubric": "rubric",
+    "criteria": "Is the model proficient in applying empathy and emotional intelligence to its responses when the user conveys emotions or faces challenging circumstances?",
+    "score1_description": "The model neglects to identify or react to the emotional tone of user inputs, giving responses that are unfitting or emotionally insensitive.",
+    "score2_description": "The model intermittently acknowledges emotional context but often responds without sufficient empathy or emotional understanding.",
+    "score3_description": "The model typically identifies emotional context and attempts to answer with empathy, yet the responses might sometimes miss the point or lack emotional profundity.",
+    "score4_description": "The model consistently identifies and reacts suitably to emotional context, providing empathetic responses. Nonetheless, there may still be sporadic oversights or deficiencies in emotional depth.",
+    "score5_description": "The model excels in identifying emotional context and persistently offers empathetic, emotionally aware responses that demonstrate a profound comprehension of the user's emotions or situation."
+}
+
+# Prepare test data
+instructions = ["How can I improve my mental health?"]
+responseA = "You should talk to a therapist and exercise regularly."
+responseB = "Just take deep breaths and relax."
+reference_answer = "Talking to a therapist and exercising regularly are good ways to improve mental health."
+
+# Initialize the model and the PairwiseRanking class
+judge = PrometheusEval(model=LiteLLM('gpt-3.5-turbo'), relative_grade_template=RELATIVE_PROMPT)
+pairwise_ranking = PairwiseRanking(model=judge, rubric_template=RELATIVE_PROMPT)
+
+# Run the test
+feedback, score = pairwise_ranking.forward(instructions, responseA, responseB, reference_answer, rubric_data)
 print("Feedback:", feedback)
 print("Score:", score)
-
 
 ################################
 #   Listwise ranking testing   #
