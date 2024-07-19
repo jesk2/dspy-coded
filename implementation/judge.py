@@ -19,7 +19,6 @@ class DirectAssessment(LLMsAsJudge):
             rubric=rubric,
             reference_answers=reference_answers
         )
-        # logging.debug(f'DirectAssessment forward: instruction={instruction}, response={response}, score={score}')
         return feedbacks, score 
 
 class PairwiseRanking(LLMsAsJudge):
@@ -32,7 +31,6 @@ class PairwiseRanking(LLMsAsJudge):
             rubric=rubric_data,
             reference_answers=[reference_answer]
         )
-        # returns one winner 
         if scores[0] > scores[1]:
             winner = 'A'
         else:
@@ -40,28 +38,25 @@ class PairwiseRanking(LLMsAsJudge):
         return feedbacks, winner
 
 class ListwiseRanking(PairwiseRanking):
-    def forward(self, instructions, response_list, reference_answers, rubric_data, num_responses=1):
+    def forward(self, instructions, response_list, reference_answers, rubric_data, num_responses):
         best_responses = []
         for i, responses in enumerate(response_list):
             if len(responses) < 2:
-                # logging.warning(f"Not enough responses for instruction {i + 1}. Skipping.")
                 continue
 
-            while len(responses) > 1 and len(responses) > num_responses:
-                next_round = []
-                for j in range(0, len(responses) - 1, 2):
+            win_counts = {response: 0 for response in responses}
+
+            for j in range(len(responses)):
+                for k in range(j + 1, len(responses)):
                     responseA = responses[j]
-                    responseB = responses[j + 1]
+                    responseB = responses[k]
                     _, winner = super().forward(instructions[i], responseA, responseB, reference_answers[i], rubric_data)
                     if winner == 'A':
-                        next_round.append(responseA)
+                        win_counts[responseA] += 1
                     else:
-                        next_round.append(responseB)
-                if len(responses) % 2 == 1:  # If odd number of responses, carry the last one to next round
-                    next_round.append(responses[-1])
-                responses = next_round
+                        win_counts[responseB] += 1
 
-            if responses:
-                best_responses.append(responses[:num_responses])
+            sorted_responses = sorted(win_counts.keys(), key=lambda x: win_counts[x], reverse=True)
+            best_responses.append(sorted_responses[:num_responses])
 
         return best_responses
