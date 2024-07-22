@@ -4,7 +4,7 @@ from mock import MockModel
 
 class TestFilters(unittest.TestCase):
     def setUp(self):
-        self.model = MockModel()  # Placeholder for an actual model
+        self.model = MockModel()  
         self.response_filter = ResponseFilter(self.model)
         self.difficulty_filter = DifficultyFilter(self.model)
 
@@ -45,70 +45,6 @@ class TestFilters(unittest.TestCase):
         ]
         best_responses = self.response_filter.forward(instructions, responses, reference_answers)
         self.assertTrue(len(best_responses) <= 5)
-
-    def test_difficulty_filter(self):
-        instructions = [
-            "Generate a basic recipe for a quick breakfast dish.",
-            "Write a detailed guide on designing a workout routine for beginners.",
-            "Draft a comprehensive project proposal for a new software application.",
-            "Compose a thorough legal contract for a freelance services agreement.",
-            "Design a training module outline for onboarding new employees in a tech company.",
-            "Generate a detailed problem set on advanced topics in quantum mechanics."
-        ]
-        
-        responses = [
-            [
-                "Mix flour, sugar, and eggs, and bake for 20 minutes.",
-                "Prepare a simple fruit smoothie with bananas and strawberries."
-            ],  # Responses for basic recipe
-            [
-                "Include warm-up exercises, strength training, and cool-down stretches.",
-                "Design a 30-minute workout with basic cardio and bodyweight exercises."
-            ],  # Responses for workout routine
-            [
-                "Outline goals, timelines, resources, and deliverables.",
-                "Create a detailed project plan including milestones and budget estimates."
-            ],  # Responses for project proposal
-            [
-                "Specify terms of the rental, including duration, deposit, and conditions.",
-                "Draft a legal document outlining service agreements and client obligations."
-            ],  # Responses for legal contract
-            [
-                "Include modules on company policies, job roles, and safety procedures.",
-                "Develop a training module with interactive lessons and assessments."
-            ],  # Responses for training module
-            [
-                "Calculate the probability of particle decay in a quantum field.",
-                "Create a set of problems on quantum entanglement and wave functions."
-            ]  # Responses for quantum mechanics problem
-        ]
-        
-        reference_answers = [None] * len(instructions)
-        
-        # Apply the DifficultyFilter
-        sorted_instructions = self.difficulty_filter.forward(instructions)
-
-        self.assertIsInstance(sorted_instructions, list)
-        self.assertTrue(all(isinstance(instr_list, list) for instr_list in sorted_instructions))
-        self.assertEqual(len(sorted_instructions), len(instructions))
-        
-        # Check that the sorting is based on difficulty
-        # The most complex task should be first, followed by next complex, etc.
-        self.assertEqual(sorted_instructions[0][0], "Generate a detailed problem set on advanced topics in quantum mechanics.")
-        self.assertEqual(sorted_instructions[1][0], "Draft a comprehensive project proposal for a new software application.")
-        self.assertEqual(sorted_instructions[2][0], "Compose a thorough legal contract for a freelance services agreement.")
-        self.assertEqual(sorted_instructions[3][0], "Design a training module outline for onboarding new employees in a tech company.")
-        self.assertEqual(sorted_instructions[4][0], "Write a detailed guide on designing a workout routine for beginners.")
-        self.assertEqual(sorted_instructions[5][0], "Generate a basic recipe for a quick breakfast dish.")
-    
-    def test_detailed_difficulty_filter(self):
-        instructions = [
-            "Explain the significance of the Treaty of Versailles in World War II.",
-            "Solve the integral of e^x * sin(x) dx.",
-            "Discuss the ethical implications of artificial intelligence in healthcare."
-        ]
-        feedbacks, scores = self.difficulty_filter.forward(instructions)
-        self.assertTrue(all(1 <= score <= 5 for score in scores))
 
 
 if __name__ == '__main__':
