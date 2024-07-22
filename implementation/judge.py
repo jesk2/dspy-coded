@@ -22,30 +22,37 @@ class DirectAssessment(LLMsAsJudge):
         return feedbacks, score 
 
 class PairwiseRanking(LLMsAsJudge):
-    def forward(self, instructions, responseA, responseB, reference_answer, rubric_data):
-        rubric = self.rubric_template.format(**rubric_data)
+    # should we explicitly include this condition or just assume that pairwise is always correct 
+    # if not (len(instructions) == len(responses_A) == len(responses_B) == len(reference_answers)):
+    #         raise ValueError("All input lists must have the same length.")
+
+    def forward(self, instructions, responseA, responseB, reference_answers, rubric_data):
         feedbacks, scores = self.model.relative_grade(
-            instructions=[instructions],
-            responses_A=[responseA],
-            responses_B=[responseB],
+            instructions=instructions,
+            responses_A=responseA,
+            responses_B=responseB,
             rubric=rubric_data,
-            reference_answers=[reference_answer]
+            reference_answers=reference_answers
         )
-        if scores[0] > scores[1]:
-            winner = 'A'
-        else:
-            winner = 'B'
-        return feedbacks, winner
+
+        winners = [] 
+        for pair in scores:
+            if pair[0] > pair[1]:
+                winners.append('A') 
+            else:
+                winners.append('B')
+        return feedbacks, winners
+    
 
 class ListwiseRanking(PairwiseRanking):
-    def forward(self, instructions, response_list, reference_answers, rubric_data, num_responses):
-        best_responses = []
+    def forward(self, instructions, response_list, reference_answers, rubric_data):
+        all_sorted_responses = []
         for i, responses in enumerate(response_list):
             if len(responses) < 2:
                 continue
 
             win_counts = {response: 0 for response in responses}
-
+            # O(n^2)
             for j in range(len(responses)):
                 for k in range(j + 1, len(responses)):
                     responseA = responses[j]
@@ -57,6 +64,7 @@ class ListwiseRanking(PairwiseRanking):
                         win_counts[responseB] += 1
 
             sorted_responses = sorted(win_counts.keys(), key=lambda x: win_counts[x], reverse=True)
-            best_responses.append(sorted_responses[:num_responses])
+            all_sorted_responses.append(sorted_responses)
 
-        return best_responses
+        # returns all n repsonses 
+        return all_sorted_responses
