@@ -12,12 +12,12 @@ class ResponseFilter(DataFilter):
         super().__init__()
         self.judge = ListwiseRanking(model=model, rubric_template=SCORE_RUBRIC_TEMPLATE)
         self.rubric_data = {
-            "criteria": "Is the response helpful, thorough, and polite?",
-            "score1_description": "The response is unhelpful, incomplete, and impolite.",
-            "score2_description": "The response is somewhat helpful but lacks completeness and politeness.",
-            "score3_description": "The response is helpful, somewhat thorough, and polite.",
-            "score4_description": "The response is very helpful, thorough, and polite.",
-            "score5_description": "The response is extremely helpful, thorough, and polite."
+            "criteria": "Evaluate the quality of the response on these three metrics: clear and accurate reply, relevant and thorough information, and polite tone.",
+            "score1_description": "The response is unclear in providing an accurate reply to the instruction, is incomplete, and has an impolite tone.",
+            "score2_description": "The response provides a somewhat clear and accurate reply, but is incomplete, has irrelevant information, and/or is impolite.",
+            "score3_description": "The response is helpful and accurate, somewhat detailed and relevant to the instruction, with a neutral or polite tone.",
+            "score4_description": "The response is overall helpful, clear and accurate. It includes many relevant details in a thorough way, and uses a polite tone.",
+            "score5_description": "The response is extremely clear and helpful, with very accurate information. It includes all relevant details in a thorough way, and uses a polite tone."
         }
 
     def forward(self, instructions, responses, reference_answers, num_responses=5):
@@ -31,12 +31,12 @@ class DifficultyFilter(DataFilter):
         super().__init__()
         self.judge = ListwiseRanking(model=model, rubric_template=SCORE_RUBRIC_TEMPLATE)
         self.rubric_data = {
-            "criteria": "Is the instruction clear and appropriately challenging?",
-            "score1_description": "The instruction is unclear and too easy.",
-            "score2_description": "The instruction is somewhat clear but too easy.",
-            "score3_description": "The instruction is clear but lacks challenge.",
-            "score4_description": "The instruction is clear and appropriately challenging.",
-            "score5_description": "The instruction is very clear and highly challenging."
+            "criteria": "Evaluate the difficulty of the instruction on these three metrics: clearly written and specific language, definitively challenging instruction in the relevant field, and creative and relevant problem-solving.",
+            "score1_description": "The instruction is unclear very and too easy.",
+            "score2_description": "The instruction is somewhat unclear but still easy. ",
+            "score3_description": "The instruction is moderately clear and lacks challenging problem-solving.",
+            "score4_description": "The instruction is clear and adequately challenging, somewhat requiring creativity or problem-solving skills.",
+            "score5_description": "The instruction is very clear and highly challenging, requiring much creativity and problem-solving skills."
         }
 
     def forward(self, instructions):
