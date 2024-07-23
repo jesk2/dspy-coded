@@ -1,8 +1,5 @@
 import dspy
 from prometheus_eval.prompts import ABSOLUTE_PROMPT, SCORE_RUBRIC_TEMPLATE, RELATIVE_PROMPT
-import logging 
-
-logging.basicConfig(level=logging.DEBUG)
 
 class LLMsAsJudge(dspy.Module):
     def __init__(self, model, rubric_template):
@@ -11,41 +8,40 @@ class LLMsAsJudge(dspy.Module):
         self.rubric_template = rubric_template
 
 class DirectAssessment(LLMsAsJudge):
-    def forward(self, instructions, responses, reference_answers, rubric_data):
+    def forward(self, instructions, responses, rubric_data, reference_answers):
         rubric = self.rubric_template.format(**rubric_data)
-        feedbacks, score = self.model.absolute_grade(
-            instructions=instructions,
-            responses=responses,
-            rubric=rubric,
-            reference_answers=reference_answers
-        )
-        return feedbacks, score 
+        all_feedbacks = []
+        all_scores = []
+
+        for instruction, response_list, reference_answer in zip(instructions, responses, reference_answers):
+            for response in response_list:
+                feedbacks, score = self.model.absolute_grade(
+                    instructions=[instruction],
+                    responses=[response],
+                    rubric=rubric,
+                    reference_answers=[reference_answer]
+                )
+                all_feedbacks.extend(feedbacks)
+                all_scores.extend(score)
+        
+        return all_feedbacks, all_scores
 
 class PairwiseRanking(LLMsAsJudge):
-    # should we explicitly include this condition or just assume that pairwise is always correct 
-    # if not (len(instructions) == len(responses_A) == len(responses_B) == len(reference_answers)):
-    #         raise ValueError("All input lists must have the same length.")
-
-    def forward(self, instructions, responseA, responseB, reference_answers, rubric_data):
-        feedbacks, scores = self.model.relative_grade(
+    def forward(self, instructions, responseA, responseB, rubric_data, reference_answers):
+        rubric = self.rubric_template.format(**rubric_data)
+        feedbacks, winners = self.model.relative_grade(
             instructions=instructions,
             responses_A=responseA,
             responses_B=responseB,
-            rubric=rubric_data,
+            rubric=rubric,
             reference_answers=reference_answers
         )
 
-        winners = [] 
-        for pair in scores:
-            if pair[0] > pair[1]:
-                winners.append('A') 
-            else:
-                winners.append('B')
         return feedbacks, winners
-    
 
 class ListwiseRanking(PairwiseRanking):
-    def forward(self, instructions, response_list, reference_answers, rubric_data):
+    def forward(self, instructions, response_list, rubric_data, reference_answers):
+        rubric = self.rubric_template.format(**rubric_data)
         all_sorted_responses = []
         for i, responses in enumerate(response_list):
             if len(responses) < 2:

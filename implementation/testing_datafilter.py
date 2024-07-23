@@ -1,5 +1,5 @@
 import unittest
-from DataFilter import ResponseFilter, DifficultyFilter
+from implementation.data_filter import ResponseFilter, DifficultyFilter
 from mock import MockModel
 
 class TestFilters(unittest.TestCase):
