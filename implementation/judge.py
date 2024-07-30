@@ -16,22 +16,17 @@ class DirectAssessment(LLMsAsJudge):
         all_feedbacks = []
         all_scores = []
 
-        for instruction, response_list, reference_answer in zip(instructions, responses, reference_answers):
-            feedbacks_for_instruction = []
-            scores_for_instruction = []
-            for response in response_list:
-                feedbacks, score = self.model.absolute_grade(
-                    instructions=[instruction],
-                    responses=[response],
-                    rubric=rubric,
-                    reference_answers=[reference_answer]
-                )
-                feedbacks_for_instruction.extend(feedbacks)
-                scores_for_instruction.extend(score)
-            all_feedbacks.append(feedbacks_for_instruction)
-            all_scores.append(scores_for_instruction)
-    
-        return all_feedbacks, all_scores
+        for instruction, response, reference_answer in zip(instructions, responses, reference_answers):
+            feedbacks, score = self.model.absolute_grade(
+                instructions=[instruction],
+                responses=[response],
+                rubric=rubric,
+                reference_answers=[reference_answer]
+            )
+            all_feedbacks.extend(feedbacks)
+            all_scores.extend(score)
+
+        return all_feedbacks, all_scores    
 
 class PairwiseRanking(LLMsAsJudge): # should only be single pair per instruction 
     def forward(self, instructions, responseA, responseB, rubric_data, reference_answers):

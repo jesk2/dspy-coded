@@ -1,5 +1,5 @@
-from judge import ListwiseRanking
 import dspy
+from judge import DirectAssessment
 from prometheus_eval.prompts import SCORE_RUBRIC_TEMPLATE
 
 class DataFilter(dspy.Module):
@@ -7,43 +7,57 @@ class DataFilter(dspy.Module):
         super().__init__()
 
 class ResponseFilter(DataFilter):
-    def __init__(self, model):
+    def __init__(self, model, score_threshold=4):
         super().__init__()
-        self.judge = ListwiseRanking(model=model, rubric_template=SCORE_RUBRIC_TEMPLATE)
+        self.judge = DirectAssessment(model=model, rubric_template=SCORE_RUBRIC_TEMPLATE)
+        self.score_threshold = score_threshold
         self.rubric_data = {
-            "criteria": "Is the response coherent with regards to the instruction, factually accurate, logically robust, and insightful?",
-            "score1_description": "The response is very incoherent with regards to the instruction, and factually inaccurate, not logically robust, and not insightful.",
-            "score2_description": "The response is mostly incoherent with regards to the instruction, and is mostly factually inaccurate, not logically robust, and/or insightful. ",
-            "score3_description": "The response is somewhat coherent with regards to the instruction, and is somewhat either factually accurate, logically robust, and/or insightful.",
-            "score4_description": "The response is overall coherent with regards to the instruction, and is generally factually accurate, logically robust, and/or insightful.",
-            "score5_description": "The response is extremely coherent with regards to the instruction, factually accurate, logically robust, and provides insightful information."
+            "criteria": "Evaluate the quality of the response on these three metrics: clear and accurate reply, relevant and thorough information, and polite tone.",
+            "score1_description": "The response is unclear in providing an accurate reply to the instruction, is incomplete, and has an impolite tone.",
+            "score2_description": "The response provides a somewhat clear and accurate reply, but is incomplete, has irrelevant information, and/or is impolite.",
+            "score3_description": "The response is helpful and accurate, somewhat detailed and relevant to the instruction, with a neutral or polite tone.",
+            "score4_description": "The response is overall helpful, clear and accurate. It includes many relevant details in a thorough way, and uses a polite tone.",
+            "score5_description": "The response is extremely clear and helpful, with very accurate information. It includes all relevant details in a thorough way, and uses a polite tone."
         }
 
-    def forward(self, instructions, responses, reference_answers, num_responses=5):
-        assert all(isinstance(r, list) for r in responses), "responses must be a list of lists"
-        sorted_responses = self.judge.forward(instructions, responses, reference_answers, self.rubric_data)
-        top_responses = [responses[i][:num_responses] for i in range(len(sorted_responses))]
-        return top_responses
-    
+    def forward(self, instructions, responses):
+        _, all_scores = self.judge.forward(instructions, responses, self.rubric_data, [None] * len(instructions))      
+        quality_responses = []
+
+        # list of instructions, list of list responses!
+        for i, scores in enumerate(all_scores):
+            response_dict = [
+                {"instruction": instructions[i], "response": responses[i][j], "score": scores[j]}
+                for j in range(len(scores)) if scores[j] >= self.score_threshold
+            ]
+            quality_responses.extend(response_dict)
+
+        return quality_responses
+
+
 class DifficultyFilter(DataFilter):
-    def __init__(self, model):
+    def __init__(self, model, score_threshold):
         super().__init__()
-        self.judge = ListwiseRanking(model=model, rubric_template=SCORE_RUBRIC_TEMPLATE)
+        self.score_threshold = score_threshold
+        self.judge = DirectAssessment(model=model, rubric_template=SCORE_RUBRIC_TEMPLATE)
         self.rubric_data = {
-            "criteria": "Is the instruction challenging in the relevant field and does it use clear and specific language?",
-            "score1_description": "The instruction is too easy and uses very unclear and generic language.",
-            "score2_description": "The instruction is still easy and generally uses unclear or generic language.",
-            "score3_description": "The instruction is somewhat challenging but does not require much creativity nor problem-solving, with moderately clear and specific language.",
-            "score4_description": "The instruction is appropriately challenging, somewhat requiring either creativity or problem-solving skills, and mostly uses clear and specific language.",
-            "score5_description": "The instruction is highly challenging, requiring much creativity and problem-solving skills, and uses very clear and specific language."
+            "criteria": "Evaluate the difficulty of the instruction on these three metrics: clearly written and specific language, definitively challenging instruction in the relevant field, and creative and relevant problem-solving.",
+            "score1_description": "The instruction is unclear very and too easy.",
+            "score2_description": "The instruction is somewhat unclear but still easy. ",
+            "score3_description": "The instruction is moderately clear and lacks challenging problem-solving.",
+            "score4_description": "The instruction is clear and adequately challenging, somewhat requiring creativity or problem-solving skills.",
+            "score5_description": "The instruction is very clear and highly challenging, requiring much creativity and problem-solving skills."
         }
 
+    def forward(self, metaprompt, instructions): 
+        responses = [[instr] for instr in instructions] 
+        # METAPROMPT SHOULD BE STRING OR LIST???? the latter right? but trying with string...
+        _, all_scores = self.judge.forward([metaprompt] * len(instructions), responses, self.rubric_data, [None] * len(instructions))
+        difficult_instructions = []
 
-    def forward(self, instructions):
-        # Placeholder responses and reference_answers for difficulty evaluation
-        responses = [[instr] for instr in instructions]  # each instruction is its own "response"
-        reference_answers = [None] * len(instructions)
-        # Get sorted instructions
-        sorted_instructions = self.judge.forward(instructions, responses, reference_answers, self.rubric_data)
-        # Return sorted instructions
-        return sorted_instructions
+        # string metaprompt, list of instructions (responses)!
+        for i, scores in enumerate(all_scores):
+            if scores[0] >= self.score_threshold:
+                difficult_instructions.append({"instruction": instructions[i], "response": instructions[i], "score": scores[0]})
+        
+        return difficult_instructions

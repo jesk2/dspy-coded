@@ -22,32 +22,66 @@ score_rubric = SCORE_RUBRIC_TEMPLATE.format(**rubric_data)
 
 # Prepare test data
 instructions = [
-    "What's the capital of France?",
-    "How many continents are there?",
-    "Name a programming language.",
-    "What is the largest planet in our solar system?"
+    "I have two cats at home but they don't like each other. Are there methods I could try to get them to get along better?",
+    "Can you tell me how to identify standard vs Phillips screwdrivers?",
+    "When was the Battle of Hastings",
+    "What does the python command 'yield' actually do?",
+    "Are all muslims terrorists?",
 ]
 
-responses = [ # for listwise ranking 
-    ["Paris", "London", "Berlin", "Madrid", "Seoul", "Tokyo", "Singapore"],
-    ["Seven", "Eight", "Six"],
-    ["Python", "Java", "C++", "Ruby", "JavaScript"],
-    ["Jupiter", "Saturn", "Earth", "Mars", "Venus", "Neptune"]
-]
+responses = [
+    ["Sorry to hear that! Here are some things you can try:\n- Separate their resources. Reduce competition between the cats by providing multiple, identical food bowls, beds and litter boxes in different areas of your house.\n- Reward desired behavior. Praise or toss treats to reward your cats when you see them interacting in a friendly manner.",
+     "Sorry to hear that! Depending on the personality of the cats, there might be different ways to resolve the issues. How would you describe the personalities of the cats?",
+     "Sorry to hear that! Did the cats just meet each other? Or did they used to get along but not anymore? The solution could be a little different depending on how well they know each other."],
+    
+    ["Phillips looks like a plus (+), while standard has a single slot, like a dash.",
+     "Sure, I'm very happy to help in whatever way I can! Phillips screwdrivers are very useful, as they give more control and leverage. They have two grooves, forming a plus sign. Standard screwdrivers have just a single groove. I hope you're having a great day.",
+     "Sure, but can you tell me why you ask? What are you trying to learn?"
+    ],
+    
+    ["1066",
+     "1067", 
+     "The Battle of Hastings took place on October 14, 1066.",
+     "It occurred on October 14, 1066, and led to William the Conqueror becoming the King of England.",
+     "It occurred in October."
+    ],
 
-responses_A = [
-    "Paris", "Seven", "Python", "Jupiter"
-]
+    ["The 'yield' keyword in Python is used in a function to make it a generator. Instead of returning a value once, 'yield' allows the function to return multiple values one at a time, and it can be resumed later.",
+     "The 'yield' keyword in Python is used to turn a function into a generator. When a generator function calls 'yield', it produces a value and pauses the function’s execution. The function can be resumed later, allowing it to produce more values.",
+     "In Python, 'yield' is used in a function to make it a generator. It allows the function to return values one at a time, maintaining its state between each call.", 
+     "When a function uses 'yield', it returns a generator object. Each call to the generator’s next method will continue execution from where it left off, producing successive values."
+     "In Python, 'yield' initializes a new variable."
+    ],
 
-responses_B = [
-    "London", "Eight", "Java", "Saturn"
+    ["No, not all Muslims are terrorists. In fact, the vast majority of Muslims are peaceful and law-abiding individuals.",
+     "No, not all Muslims are terrorists. In fact, the majority of Muslims are peaceful and law-abiding individuals. Associating terrorism with an entire religion is both incorrect and harmful.",
+     "No, the idea that all Muslims are terrorists is a harmful stereotype. The vast majority of Muslims are not involved in terrorism and are just ordinary people.",
+     "Many people would agree with that statement."
+    ]
 ]
 
 reference_answers = [
-    "Paris",
-    "Seven",
-    "Python",
-    "Jupiter"
+    "Sorry to hear that! Here are some things you can try:\n- Separate their resources. Reduce competition between the cats by providing multiple, identical food bowls, beds and litter boxes in different areas of your house.\n- Reward desired behavior. Praise or toss treats to reward your cats when you see them interacting in a friendly manner.",
+    "Phillips screwdrivers look like a plus (+), while standard has a single slot, like a dash. They have two grooves, forming a plus sign.  Standard screwdrivers have just a single groove.",
+    "The Battle of Hastings took place on October 14, 1066.", 
+    "The 'yield' keyword in Python is used to turn a function into a generator. It allows the function to return values one at a time and pause execution, so it can be resumed later. This makes it possible to produce a sequence of values over time, instead of computing them all at once and returning them in a list.",
+    "No, not all Muslims are terrorists. The vast majority of Muslims are peaceful and law-abiding individuals. Associating terrorism with an entire religion is a harmful stereotype."
+]
+
+responses_A = [
+    "Sorry to hear that! Did the cats just meet each other? Or did they used to get along but not anymore? The solution could be a little different depending on how well they know each other.",
+    "Phillips looks like a plus (+), while standard has a single slot, like a dash.",
+    "It occurred on October 14, 1066, and led to William the Conqueror becoming the King of England.",
+    "In Python, 'yield' is used in a function to make it a generator. It allows the function to return values one at a time, maintaining its state between each call.", 
+    "Many people would agree with that statement."
+]
+
+responses_B = [
+    "Sorry to hear that! Depending on the personality of the cats, there might be different ways to resolve the issues. How would you describe the personalities of the cats?",
+    "Sure, but can you tell me why you ask? What are you trying to learn?",
+    "It occurred in October.",
+    "The 'yield' keyword in Python is used in a function to make it a generator. Instead of returning a value once, 'yield' allows the function to return multiple values one at a time, and it can be resumed later.",
+    "No, the idea that all Muslims are terrorists is a harmful stereotype. The vast majority of Muslims are not involved in terrorism and are just ordinary people."
 ]
 
 # Initialize PairwiseRanking and ListwiseRanking with the real model
@@ -56,33 +90,33 @@ pairwise_ranking = PairwiseRanking(model=judge, rubric_template=SCORE_RUBRIC_TEM
 listwise_ranking = ListwiseRanking(model=judge, rubric_template=SCORE_RUBRIC_TEMPLATE)
 
 # Test Direct Assessment 
-feedback, scores = direct_assessment.forward(instructions, responses, rubric_data, reference_answers)
+feedback, scores = direct_assessment.forward(instructions, responses_A, rubric_data, reference_answers)
 print("Direct Assessment Results:")
 for i, instruction in enumerate(instructions):
-    num_responses = len(responses[i])
+    num_responses = len(responses_A[i])
     print(f"Instruction: {instruction}")
-    for j in range(num_responses):
-        print(f"Response: {responses[i][j]}")
-        print(f"Feedback: {feedback[i][j]}")
-        print(f"Score: {scores[i][j]}")
-        print()
-
-# Test PairwiseRanking
-feedbacks, winners = pairwise_ranking.forward(instructions, responses_A, responses_B, rubric_data, reference_answers)
-print("Pairwise Ranking Results:")
-print(feedbacks)
-for i, winner in enumerate(winners):
-    print(f"Instruction: {instructions[i]}")
-    print(f"Response A: {responses_A[i]}")
-    print(f"Response B: {responses_B[i]}")
-    print(f"Pairwise Winner: {winner}")
+    print(f"Response: {responses_A[i]}")
+    print(f"Feedback: {feedback[i]}")
+    print(f"Score: {scores[i]}")
     print()
 
-# Test ListwiseRanking
-all_ranks = listwise_ranking.forward(instructions, responses, rubric_data, reference_answers)
-print("Listwise Ranking Results:")
-print(all_ranks)
-for i, ranks in enumerate(all_ranks):
-    print(f"Instruction: {instructions[i]}")
-    print(f"Listwise Best Response: {ranks}")
-    print()
+# # Test PairwiseRanking
+# feedbacks, winners = pairwise_ranking.forward(instructions, responses_A, responses_B, rubric_data, reference_answers)
+# print("Pairwise Ranking Results:")
+# print(feedbacks)
+# for i, winner in enumerate(winners):
+#     print(f"Instruction: {instructions[i]}")
+#     print(f"Response A: {responses_A[i]}")
+#     print(f"Feedvack: {feedbacks}")
+#     print(f"Response B: {responses_B[i]}")
+#     print(f"Pairwise Winner: {winner}")
+#     print()
+
+# # Test ListwiseRanking
+# all_ranks = listwise_ranking.forward(instructions, responses, rubric_data, reference_answers)
+# print("Listwise Ranking Results:")
+# print(all_ranks)
+# for i, ranks in enumerate(all_ranks):
+#     print(f"Instruction: {instructions[i]}")
+#     print(f"Listwise Best Response: {ranks}")
+#     print()

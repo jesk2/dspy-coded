@@ -1,4 +1,3 @@
-from judge import ListwiseRanking
 from best_of_N_sampling import BestofNSampling
 from prometheus_eval.vllm import VLLM
 from prometheus_eval import PrometheusEval
@@ -33,15 +32,15 @@ responses = [
     
     ["1066",
      "1067", 
-     "The Battle of Hastings took place on October 14, 1066."
-     "It occurred on October 14, 1066, and led to William the Conqueror becoming the King of England."
+     "The Battle of Hastings took place on October 14, 1066.",
+     "It occurred on October 14, 1066, and led to William the Conqueror becoming the King of England.",
      "It occurred in October."
     ],
 
     ["The 'yield' keyword in Python is used in a function to make it a generator. Instead of returning a value once, 'yield' allows the function to return multiple values one at a time, and it can be resumed later.",
      "The 'yield' keyword in Python is used to turn a function into a generator. When a generator function calls 'yield', it produces a value and pauses the function’s execution. The function can be resumed later, allowing it to produce more values.",
      "In Python, 'yield' is used in a function to make it a generator. It allows the function to return values one at a time, maintaining its state between each call.", 
-     "When a function uses 'yield', it returns a generator object. Each call to the generator’s next method will continue execution from where it left off, producing successive values."
+     "When a function uses 'yield', it returns a generator object. Each call to the generator’s next method will continue execution from where it left off, producing successive values.",
      "In Python, 'yield' initializes a new variable."
     ],
 
@@ -68,7 +67,7 @@ judge = PrometheusEval(model=model, relative_grade_template=RELATIVE_PROMPT)
 best_of_n_sampling = BestofNSampling(model=judge, rubric_template=SCORE_RUBRIC_TEMPLATE)
 
 # Test BestofNSampling
-num_responses = 1
+num_responses = 2
 top_responses = best_of_n_sampling.forward(instructions, responses, rubric_data, reference_answers, num_responses)
 print(f"top responses: {top_responses}")
 for i, top in enumerate(top_responses):
