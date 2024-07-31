@@ -1,83 +1,163 @@
-# just LLMsAsJudge and DirectAssessment classes 
-
+from typing import List, Dict, Optional, Tuple, Any
+from pydantic import BaseModel
 import dspy
-from dspy import Prediction
-from dspy.evaluate.metrics import answer_exact_match, answer_passage_match
-from prometheus_eval import PrometheusEval
-from prometheus_eval.mock import MockLLM
-from prometheus_eval.prompts import ABSOLUTE_PROMPT, SCORE_RUBRIC_TEMPLATE, RELATIVE_PROMPT
-import logging 
-# for testing use from prometheus_eval.mock import MockLLM (result is Hello by default and judge_model = 'absolute' 
 
-logging.basicConfig(level=logging.DEBUG)
+class PointwiseData(BaseModel):
+    """
+    Model representing pointwise data used for assessments.
+    
+    Attributes:
+        instruction (str): The instruction for the assessment.
+        response (str): The response to be assessed.
+        reference_answer (Optional[str]): The reference answer for comparison, if available.
+    """
+    instruction: str
+    response: str
+    reference_answer: Optional[str] = None
+
+class PairwiseData(BaseModel):
+    """
+    Model representing pairwise data used for assessments.
+
+    Attributes:
+        instruction (str): The instruction for the assessment.
+        responseA (str): The first response to be compared.
+        responseB (str): The second response to be compared.
+        reference_answer (Optional[str]): The reference answer for comparison, if available.
+    """
+    instruction: str
+    responseA: str
+    responseB: str
+    reference_answer: Optional[str] = None
 
 class LLMsAsJudge(dspy.Module):
-    def __init__(self, model_name, rubric_template):
+    """
+    Base class for modules that utilize language models for judging responses.
+
+    Attributes:
+        model (Any): The model used for grading or ranking responses.
+        rubric_template (str): Template for the rubric used in assessments.
+    """
+    def __init__(self, model: Any, rubric_template: str):
         super().__init__()
-        self.judge = PrometheusEval(model=MockLLM(model_name))
+        self.model = model
         self.rubric_template = rubric_template
 
-    # def forward(self, instruction, response, reference_answer, rubric_data):
-    #     rubric = self.rubric_template.format(**rubric_data)
-    #     logging.debug(f"Formatted rubric: {rubric}")
-        
-    #     try:
-    #         feedback, score = self.judge.single_absolute_grade(
-    #             instruction=instruction,
-    #             response=response,
-    #             rubric=rubric,
-    #             reference_answer=reference_answer
-    #         )
-    #         logging.debug(f"Received feedback: {feedback}, score: {score}")
-    #     except Exception as e:
-    #         logging.error(f"Error in single_absolute_grade: {e}")
-    #         feedback, score = None, None
-        
-    #     return Prediction(feedback=feedback, score=score)
-
 class DirectAssessment(LLMsAsJudge):
-    def forward(self, instruction, response, reference_answer, rubric_data):
-        return
-        # return super().forward(instruction, response, reference_answer, rubric_data)
-    
+    """
+    Assessment module for absolute grading.
+
+    Inherits from LLMsAsJudge and implements forward method for grading responses.
+    """
+    def forward(self, instructions: List[str], responses: List[str], rubric_data: Dict[str, Any], reference_answers: List[Optional[str]]) -> Tuple[List[str], List[float]]:
+        """
+        Grades responses based on the provided instructions and rubric.
+
+        Args:
+            instructions (List[str]): List of instructions for the assessment.
+            responses (List[str]): List of responses to be assessed.
+            rubric_data (Dict[str, Any]): Data to populate the rubric template.
+            reference_answers (List[Optional[str]]): List of reference answers for comparison.
+
+        Returns:
+            Tuple[List[str], List[float]]: Feedbacks and scores for the responses.
+        """
+        rubric = self.rubric_template.format(**rubric_data)
+        all_feedbacks = []
+        all_scores = []
+
+        for instruction, response, reference_answer in zip(instructions, responses, reference_answers):
+            feedbacks, scores = self.model.absolute_grade(
+                instructions=[instruction],
+                responses=[response],
+                rubric=rubric,
+                reference_answers=[reference_answer]
+            )
+            all_feedbacks.extend(feedbacks)
+            all_scores.extend(scores)
+
+        return all_feedbacks, all_scores    
+
 class PairwiseRanking(LLMsAsJudge):
-    def forward(self, instruction, responseA, responseB, reference_answer, rubric_data):
-        return
-        # return super().forward(instruction, response, reference_answer, rubric_data)
-    
-class ListwiseRanking(LLMsAsJudge):
-    def forward(self, instruction, response_list, reference_answer, rubric_data):
-        return
-        # return super().forward(instruction, response, reference_answer, rubric_data)
+    """
+    Assessment module for pairwise ranking.
 
-# testing 
-if __name__ == "__main__":
-    rubric_template = SCORE_RUBRIC_TEMPLATE
-    judge_model = 'absolute' 
+    Inherits from LLMsAsJudge and implements forward method for comparing two responses.
+    """
+    def forward(self, instructions: List[str], responseA: List[str], responseB: List[str], rubric_data: Dict[str, Any], reference_answers: List[Optional[str]]) -> Tuple[List[str], List[str]]:
+        """
+        Compares two sets of responses and determines the better one.
 
-    instruction = "Struggling with a recent break-up, a person opens up about the intense feelings of loneliness and sadness. They ask for advice on how to cope with the heartbreak and move forward in life."
-    response = "It's important to allow yourself to feel your emotions and give yourself time to heal. Try to focus on self-care and seek support from friends and family."
-    reference_answer = "To cope with heartbreak, you can start by acknowledging your emotions, spending time with loved ones, engaging in activities you enjoy, and considering professional help if needed."
-    rubric_data = {
-        "criteria": "Is the model proficient in applying empathy and emotional intelligence to its responses when the user conveys emotions or faces challenging circumstances?",
-        "score1_description": "The model neglects to identify or react to the emotional tone of user inputs, giving responses that are unfitting or emotionally insensitive.",
-        "score2_description": "The model intermittently acknowledges emotional context but often responds without sufficient empathy or emotional understanding.",
-        "score3_description": "The model typically identifies emotional context and attempts to answer with empathy, yet the responses might sometimes miss the point or lack emotional profundity.",
-        "score4_description": "The model consistently identifies and reacts suitably to emotional context, providing empathetic responses. Nonetheless, there may still be sporadic oversights or deficiencies in emotional depth.",
-        "score5_description": "The model excels in identifying emotional context and persistently offers empathetic, emotionally aware responses that demonstrate a profound comprehension of the user's emotions or situation."
-    }
+        Args:
+            instructions (List[str]): List of instructions for the assessment.
+            responseA (List[str]): List of first responses for pairwise comparison.
+            responseB (List[str]): List of second responses for pairwise comparison.
+            rubric_data (Dict[str, Any]): Data to populate the rubric template.
+            reference_answers (List[Optional[str]]): List of reference answers for comparison.
 
-    gpt3 = dspy.OpenAI(
-        model="gpt-3.5-turbo",
-        max_tokens=4000,
-        model_type="chat",
-    )
+        Returns:
+            Tuple[List[str], List[str]]: Feedbacks and winners for each pair of responses.
+        """
+        rubric = self.rubric_template.format(**rubric_data)
 
-    with dspy.context(lm=gpt3):
-        direct_assessment = DirectAssessment(
-            model_name=judge_model,
-            rubric_template=rubric_template
+        feedbacks, winners = self.model.relative_grade(
+            instructions=instructions,
+            responses_A=responseA,
+            responses_B=responseB,
+            rubric=rubric,
+            reference_answers=reference_answers
         )
-        result = direct_assessment.forward(instruction, response, reference_answer, rubric_data)
-        # print("Feedback:", result.feedback)
-        # print("Score:", result.score)
+
+        return feedbacks, winners
+
+class ListwiseRanking(PairwiseRanking):
+    """
+    Assessment module for listwise ranking based on pairwise comparisons.
+
+    Inherits from PairwiseRanking and implements forward method for ranking a list of responses.
+    """
+    def forward(self, instructions: List[str], response_list: List[List[str]], rubric_data: Dict[str, Any], reference_answers: List[Optional[str]]) -> List[List[int]]:
+        """
+        Ranks a list of responses based on pairwise comparisons.
+
+        Args:
+            instructions (List[str]): List of instructions for the assessment.
+            response_list (List[List[str]]): List of response lists to be ranked.
+            rubric_data (Dict[str, Any]): Data to populate the rubric template.
+            reference_answers (List[Optional[str]]): List of reference answers for comparison.
+
+        Returns:
+            List[List[int]]: Rankings for each list of responses.
+        """
+        all_rankings = []
+
+        for i, responses in enumerate(response_list):
+            if len(responses) < 2:
+                all_rankings.append([1] * len(responses))
+                continue
+
+            win_counts = {response: 0 for response in responses}
+            for j in range(len(responses)):
+                for k in range(j + 1, len(responses)):
+                    responseA = responses[j]
+                    responseB = responses[k]
+
+                    _, winners = super().forward([instructions[i]], [responseA], [responseB], rubric_data, reference_answers[i])
+
+                    if winners[0] == 'A':
+                        win_counts[responseA] += 1
+                    else:
+                        win_counts[responseB] += 1
+
+            rankings = [0] * len(responses)
+            sorted_responses = sorted(win_counts.items(), key=lambda item: item[1], reverse=True)
+
+            rank = 1
+            for idx in range(len(sorted_responses)):
+                if idx > 0 and sorted_responses[idx][1] < sorted_responses[idx - 1][1]:
+                    rank = idx + 1
+                rankings[responses.index(sorted_responses[idx][0])] = rank
+
+            all_rankings.append(rankings)
+
+        return all_rankings
