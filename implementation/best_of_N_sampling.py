@@ -41,45 +41,44 @@ class BestofNSampling(dspy.Module):
         Returns:
             A list of lists where each inner list contains the top N responses selected.
         """
-        all_scores = []
+        flat_instructions = []
+        flat_responses = []
+        for instr, responses in zip(instructions, response_list):
+            flat_instructions.extend([instr] * len(responses))
+            flat_responses.extend([[response] for response in responses])
+
+        # Obtain scores from direct assessment
+        _, all_scores = self.direct_assessment.forward(
+            flat_instructions, flat_responses, rubric_data, [None] * len(flat_instructions)
+        )
+
+        # Split the scores back into the original structure
+        split_scores = []
+        idx = 0
         for responses in response_list:
-            _, score_list = self.direct_assessment.forward(
-                instructions, responses, rubric_data, reference_answers
-            )
-            all_scores.append(score_list)
-        print(all_scores)
+            split_scores.append(all_scores[idx:idx + len(responses)])
+            idx += len(responses)
 
-        top_n = []
-
-        max_score = 5
-        min_score = 1
-        for response_sublist, score_list in zip(response_list, all_scores):
-            # Create a dictionary to group responses by their scores
-            score_buckets = {i: [] for i in range(min_score, max_score+1)}
+        def process_responses(instr, response_sublist, score_list, ref_ans):
+            score_buckets = {i: [] for i in range(1, 6)}  # Assuming scores are between 1 and 5
             for response, score in zip(response_sublist, score_list):
                 score_buckets[score].append(response)
 
             selected_responses = []
-
             for score in range(5, 0, -1):
                 if score_buckets[score]:
                     responses_needed = num - len(selected_responses)
                     if responses_needed > 0:
-                        selected_responses.extend(
-                            score_buckets[score][:responses_needed]
-                        )
+                        selected_responses.extend(score_buckets[score][:responses_needed])
                     if len(selected_responses) == num:
                         break
 
-            # If more responses in bucket than num, rank them
             if len(selected_responses) > num:
                 ranked_indices = self.listwise_ranking.forward(
-                    [instructions[0]],  # Assuming single instruction for the ranking
+                    [instr],
                     [selected_responses],
                     rubric_data,
-                    [
-                        reference_answers[0]
-                    ],  # Assuming single reference answer for the ranking
+                    [ref_ans] if ref_ans is not None else [None]
                 )[0]
                 selected_responses = [
                     selected_responses[j]
@@ -88,6 +87,14 @@ class BestofNSampling(dspy.Module):
                     )[:num]
                 ]
 
-            top_n.append(selected_responses)
+            return selected_responses
+
+        top_n = []
+        if reference_answers is None:
+            for instr, response_sublist, score_list in zip(instructions, response_list, split_scores):
+                top_n.append(process_responses(instr, response_sublist, score_list, None))
+        else:
+            for instr, response_sublist, score_list, ref_ans in zip(instructions, response_list, split_scores, reference_answers):
+                top_n.append(process_responses(instr, response_sublist, score_list, ref_ans))
 
         return top_n
