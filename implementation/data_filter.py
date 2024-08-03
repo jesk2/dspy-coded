@@ -81,20 +81,31 @@ class QualityResponseFilter(DataFilter):
         Returns:
             A list of ResponseData containing instructions, responses, and their scores that meet the threshold.
         """
-        _, all_scores = self.judge.forward(
-            instructions, responses, self.rubric_data.model_dump(), [None] * len(instructions)
+        flat_instructions = []
+        flat_responses = []
+        for i, response_set in enumerate(responses):
+            flat_instructions.extend([instructions[i]] * len(response_set))
+            flat_responses.extend(response_set)
+        print(len(flat_instructions))
+
+        _, flat_scores = self.judge.forward(
+            flat_instructions, [[response] for response in flat_responses],
+            self.rubric_data.model_dump(), [None] * len(flat_responses)
         )
+
         quality_responses = []
-    
-        for i, scores in enumerate(all_scores): 
+        idx = 0
+        for i, response_set in enumerate(responses):
+            scores_list = flat_scores[idx: idx + len(response_set)]
+            idx += len(response_set)
             response_dict = [
                 ResponseData(
                     instruction=instructions[i],
-                    response=responses[i][j],
-                    score=scores[j],
+                    response=response_set[j],
+                    score=scores_list[j],
                 )
-                for j in range(len(scores))
-                if scores[j] >= self.score_threshold
+                for j in range(len(scores_list))
+                if scores_list[j] >= self.score_threshold
             ]
             quality_responses.extend(response_dict)
 
@@ -147,28 +158,23 @@ class DifficultyFilter(DataFilter):
             A list of InstructionData containing instructions, responses, and their scores that meet the threshold.
         """
         responses = [[instr] for instr in instructions]
+        flat_metaprompt = [metaprompt] * len(instructions)
         _, all_scores = self.judge.forward(
-            [metaprompt] * len(instructions),
+            flat_metaprompt,
             responses,
             self.rubric_data.model_dump(),
             [None] * len(instructions),
         )
+
         difficult_instructions = []
 
-        # Ensure that the lengths match
-        if len(all_scores) != len(instructions):
-            raise ValueError("Scores and instructions length mismatch.")
-    
-        for i, scores in enumerate(all_scores):
-            if len(scores) != 1:
-                raise ValueError(f"Scores length mismatch for instruction {i}.")
-
-            if scores[0] >= self.score_threshold:
+        for i, score in enumerate(all_scores):
+            if score >= self.score_threshold:
                 difficult_instructions.append(
                     InstructionData(
                         instruction=instructions[i],
                         response=instructions[i],
-                        score=scores[0],
+                        score=score,
                     )
                 )
 
