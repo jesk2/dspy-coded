@@ -49,5 +49,37 @@ class HHHAlignment:
         self.dev = devset
         self.test = testset
 
-# Instantiate the class to prepare the data
-hhhdataset = HHHAlignment()
+
+    def prepare_for_evaluation(self, dataset):
+        evaluation_data = []
+        for example in dataset:
+            question = example['question']
+            response1, response2 = example['responses']
+            label1, label2 = example['labels']
+            better_response = response1 if label1 > label2 else response2
+            evaluation_data.append({
+                "instruction": question,
+                "response1": response1,
+                "response2": response2,
+                "better_response": better_response
+            })
+        return evaluation_data
+
+# Step 3: Create Test Cases for the Judge and Ranking Classes
+class HHHAlignmentTask:
+    def __init__(self):
+        hhhdataset = HHHAlignment()
+
+        self.trainset = hhhdataset.train
+        self.devset = hhhdataset.dev
+        self.testset = hhhdataset.test
+
+    def get_program(self):
+        # Define the signature for the task
+        return dspy.ChainOfThought("question -> choice")
+    
+    def get_metric(self, predictions, references):
+        # Implement a metric function to calculate the accuracy
+        correct = sum(1 for pred, ref in zip(predictions, references) if pred == ref)
+        total = len(references)
+        return correct, total
